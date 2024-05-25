@@ -30,7 +30,7 @@ pip install requests urllib3
 使用Python执行脚本：
 
 ```sh
-python aeust_login.py
+python main.py
 ```
 
 
