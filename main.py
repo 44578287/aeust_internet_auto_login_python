@@ -3,6 +3,7 @@ import os
 import re
 import sys
 import time
+import toml
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -42,6 +43,51 @@ console_handler.setFormatter(formatter)
 # 将处理器添加到日志记录器
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
+
+
+class AEUST_Config:
+    default_config = {
+        "username": "学号",
+        "password": "密码",
+        "interval": 30,
+    }
+
+    def load_config(self):
+        if not os.path.exists(self.__config_file):
+            logger.error("配置文件不存在")
+            return 0
+
+        try:
+            with open(self.__config_file, 'r', encoding='utf-8') as file:
+                self.__config = toml.load(file)
+        except toml.TomlDecodeError as e:
+            logger.error("配置文件解析失败: " + str(e))
+            return -1
+
+        return self.__config
+
+    def save_config(self):
+        try:
+            with open(self.__config_file, 'w', encoding='utf-8') as file:
+                toml.dump(self.__config, file)
+        except toml.TomlDecodeError as e:
+            logger.error("配置文件保存失败: " + str(e))
+            return 0
+
+        return self.__config
+    
+    def get_config(self):
+        return self.__config
+    
+    def __init__(self):
+        self.__config_file = os.path.join(current_script_directory, 'config.toml')
+        self.__config = None
+        self._initialisation = False
+        if self.load_config() is 0:
+            logger.info("配置文件不存在创建默认配置文件")
+            self.__config = self.default_config
+            self.save_config()
+            self._initialisation = True
 
 
 class AEUST_Login:
@@ -139,15 +185,20 @@ if __name__ == '__main__':
     logger.info("项目发布地址 @ https://445720.xyz and https://github.com/445782870")
     logger.info("ck小捷 QQ:2407896713 mail:g9964957@gmail.com")
 
-    aeust_login = AEUST_Login("学号", "密码")
+    Config = AEUST_Config()
+    if Config._initialisation:
+        logger.info("请编辑配置文件 config.toml 更改账号密码")
+        sys.exit(0)
+
+    aeust_login = AEUST_Login(Config.get_config()["username"], Config.get_config()["password"])
 
     while True:
         check_status = aeust_login.check_internet()
         if isinstance(check_status, str):
             aeust_login.login()
         elif check_status:
-            logger.info("网络已连接")
-            time.sleep(30)  # 休眠30秒后继续检查
+            logger.debug("网络已连接")
+            time.sleep(Config.get_config()["interval"])  # 休眠*秒后继续检查
         else:
             logger.warning("网络连接失败，将在10秒后重试...")
             time.sleep(10)  # 休眠10秒后重试
